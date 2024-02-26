@@ -511,6 +511,23 @@ Onyx.connect({
     },
 });
 
+function getSortedReportActions(reportID: string): ReportAction[] {
+    const actions = reportActionsByReport?.[reportID]
+    if (!actions) {
+        return []
+    }
+    return ReportActionsUtils.getSortedReportActions(Object.values(actions), true);
+}
+
+function findLastIOUReportAction(iouReport: OnyxEntry<Report> | EmptyObject): ReportAction | EmptyObject {
+    return getSortedReportActions(iouReport?.reportID ?? '').find(
+        (reportAction, key) =>
+            ReportActionsUtils.shouldReportActionBeVisible(reportAction, key) &&
+            reportAction.pendingAction !== CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE &&
+            ReportActionsUtils.isMoneyRequestAction(reportAction),
+    ) ?? {};
+}
+
 function getChatType(report: OnyxEntry<Report> | Participant | EmptyObject): ValueOf<typeof CONST.REPORT.CHAT_TYPE> | undefined {
     return report?.chatType;
 }
@@ -2298,6 +2315,19 @@ function getReportPreviewMessage(
         return reportActionMessage;
     }
 
+    console.groupCollapsed(`[getReportPreviewMessage]`)
+    console.log(`report:`, report)
+    console.log(`reportAction (before):`, reportAction)
+    if (!isEmptyObject(reportAction) && isForListPreview && isIOUReport(report) && ReportActionsUtils.isReportPreviewAction(reportAction)) {
+        const linkedTransaction = TransactionUtils.getLinkedTransaction(reportAction);
+        console.log(`linkedTransaction:`, linkedTransaction)
+        if (!isEmptyObject( linkedTransaction) && TransactionUtils.isReceiptBeingScanned(linkedTransaction)) {
+            reportAction = findLastIOUReportAction(report)
+        }
+    }
+    console.log(`reportAction (after):`, reportAction)
+    console.groupEnd()
+
     if (!isEmptyObject(reportAction) && !isIOUReport(report) && reportAction && ReportActionsUtils.isSplitBillAction(reportAction)) {
         // This covers group chats where the last action is a split bill action
         const linkedTransaction = TransactionUtils.getLinkedTransaction(reportAction);
@@ -2387,7 +2417,14 @@ function getReportPreviewMessage(
     if (isEmptyObject(linkedTransaction) && !isEmptyObject(reportAction)) {
         linkedTransaction = TransactionUtils.getLinkedTransaction(reportAction);
     }
-    const comment = !isEmptyObject(linkedTransaction) ? TransactionUtils.getDescription(linkedTransaction) : undefined;
+    let comment = !isEmptyObject(linkedTransaction) ? TransactionUtils.getDescription(linkedTransaction) : undefined;
+    if (!isEmptyObject(reportAction) && ReportActionsUtils.isReportPreviewAction(reportAction)) {
+        const numberOfRequests = ReportActionsUtils.getNumberOfMoneyRequests(reportAction)
+        // Omit description when report has multiple money requets
+        if (numberOfRequests > 1) {
+            comment = undefined
+        }
+    }
 
     // if we have the amount in the originalMessage and lastActorID, we can use that to display the preview message for the latest request
     if (amount !== undefined && lastActorID && !isPreviewMessageForParentChatReport) {

@@ -548,20 +548,25 @@ function getLastMessageTextForReport(report: OnyxEntry<Report>, lastActorDetails
         lastMessageTextFromReport = ReportUtils.formatReportLastMessageText(properSchemaForMoneyRequestMessage);
     } else if (ReportActionUtils.isReportPreviewAction(lastReportAction)) {
         const iouReport = ReportUtils.getReport(ReportActionUtils.getIOUReportIDFromReportActionPreview(lastReportAction));
-        const lastIOUMoneyReportAction = allSortedReportActions[iouReport?.reportID ?? '']?.find(
-            (reportAction, key) =>
-                ReportActionUtils.shouldReportActionBeVisible(reportAction, key) &&
-                reportAction.pendingAction !== CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE &&
-                ReportActionUtils.isMoneyRequestAction(reportAction),
-        );
+        // const lastIOUMoneyReportAction = allSortedReportActions[iouReport?.reportID ?? '']?.find(
+        //     (reportAction, key) =>
+        //         ReportActionUtils.shouldReportActionBeVisible(reportAction, key) &&
+        //         reportAction.pendingAction !== CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE &&
+        //         ReportActionUtils.isMoneyRequestAction(reportAction),
+        // );
         lastMessageTextFromReport = ReportUtils.getReportPreviewMessage(
             !isEmptyObject(iouReport) ? iouReport : null,
-            lastIOUMoneyReportAction,
+            lastReportAction,
             true,
             ReportUtils.isChatReport(report),
             null,
             true,
         );
+        console.groupCollapsed(`[getLastMessageTextForReport]`, lastMessageTextFromReport)
+        console.log(`lastReportAction:`, lastReportAction)
+        // console.log(`lastIOUMoneyReportAction:`, lastIOUMoneyReportAction)
+        console.log(`iouReport:`, iouReport)
+        console.groupEnd()
     } else if (ReportActionUtils.isReimbursementQueuedAction(lastReportAction)) {
         lastMessageTextFromReport = ReportUtils.getReimbursementQueuedActionMessage(lastReportAction, report);
     } else if (ReportActionUtils.isReimbursementDeQueuedAction(lastReportAction)) {
